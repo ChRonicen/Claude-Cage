@@ -1,11 +1,40 @@
-name: Verify and package Cage v0.1.7 on Linux
+name: Verify Debian 12 process cleanup with an init process
 on: workflow_dispatch
 permissions:
   contents: read
+  actions: read
 jobs:
-  linux:
-    uses: ./.github/workflows/linux-build.yml
-    with:
-      ref: 588b1328c792db0cf44398573278b54953082fca
-      release: true
-      artifact_name: release-linux
+  package-compatibility:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [debian:12]
+    container:
+      image: ${{ matrix.image }}
+      options: --init --security-opt seccomp=unconfined --security-opt systempaths=unconfined --security-opt apparmor=unconfined
+    steps:
+      - name: Install package test tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates git dbus-x11 xvfb xauth fonts-noto-cjk
+      - uses: actions/checkout@v4
+        with:
+          ref: 588b1328c792db0cf44398573278b54953082fca
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-linux
+          run-id: 43017261849
+          github-token: ${{ github.token }}
+          path: _output/compatibility
+      - name: Test the Ubuntu 22.04-built package unchanged
+        shell: bash
+        run: |
+          package=$(find _output/compatibility -name 'Cage-*-linux-amd64.deb' -print -quit)
+          test -n "$package"
+          bash scripts/test-linux-install.sh "$package"

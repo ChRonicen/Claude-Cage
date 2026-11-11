@@ -145,7 +145,7 @@ jobs:
         image: [debian:12, ubuntu:24.04]
     container:
       image: ${{ matrix.image }}
-      options: --security-opt seccomp=unconfined --security-opt systempaths=unconfined --security-opt apparmor=unconfined
+      options: --init --security-opt seccomp=unconfined --security-opt systempaths=unconfined --security-opt apparmor=unconfined
     steps:
       - name: Install package test tools
         run: |
