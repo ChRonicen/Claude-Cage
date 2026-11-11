@@ -4,9 +4,9 @@ set -euo pipefail
 repo=Lee-xeo/Claude-Cage
 tag=v0.1.7
 [[ "$SOURCE" =~ ^[a-f0-9]{40}$ && "$WIN_RUN" =~ ^[0-9]+$ && "$LINUX_RUN" =~ ^[0-9]+$ ]]
-test "$SOURCE" = "9c1fb2cd21c7caa479edacb33a8e8bc700ebb51c"
-test "$WIN_RUN" = 43025508805
-test "$LINUX_RUN" = 43025508805
+test "$SOURCE" = "5c24a6fc658153269cabf5c9773e72c36df87721"
+test "$WIN_RUN" = 43027324230
+test "$LINUX_RUN" = 43027324230
 test "$(git rev-parse HEAD)" = "$SOURCE"
 test "$(cat VERSION)" = '0.1.7'
 work=$(mktemp -d)
