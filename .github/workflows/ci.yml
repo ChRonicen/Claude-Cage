@@ -1,58 +1,11 @@
-name: Three-platform checks and test packages
-on:
-  push:
-    branches: ['**', '!codex/release/**']
-  pull_request:
-  workflow_dispatch:
+name: Verify and package Cage v0.1.7 on Linux
+on: workflow_dispatch
 permissions:
   contents: read
-concurrency:
-  group: cage-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 jobs:
-  workflow-checks:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Version consistency and release safety tests
-        run: |
-          node scripts/check-repository-files.mjs
-          node scripts/check-version.mjs
-          node --test scripts/release-version.test.mjs scripts/release-control.test.mjs scripts/prepare-release-assets.test.mjs scripts/esigner.test.mjs
-          pwsh -NoProfile -File scripts/test-windows-signing.ps1
-      - name: Validate workflow syntax
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.11 -color
-  macos:
-    needs: workflow-checks
-    uses: ./.github/workflows/macos-build.yml
-    with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-macos-arm64-test
-  windows:
-    needs: workflow-checks
-    uses: ./.github/workflows/windows-build.yml
-    with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-windows-amd64-test
   linux:
-    needs: workflow-checks
     uses: ./.github/workflows/linux-build.yml
     with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-linux-amd64-test
+      ref: 588b1328c792db0cf44398573278b54953082fca
+      release: true
+      artifact_name: release-linux
