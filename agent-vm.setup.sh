@@ -316,14 +316,18 @@ if [[ "$INSTALL_CHROMIUM" == "1" ]]; then
 fi
 
 if [[ "$INSTALL_GH" == "1" ]]; then
-  # Install GitHub CLI from official repo
-  echo "Installing GitHub CLI..."
-  sudo mkdir -p -m 755 /etc/apt/keyrings
-  install_repository_key https://cli.github.com/packages/githubcli-archive-keyring.gpg /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-  apt_get update
-  apt_get install -y --no-install-recommends gh
+  if [[ "${CLAUDE_CAGE:-}" == 1 ]]; then
+    cage_install_tool gh
+  else
+    # Install GitHub CLI from official repo
+    echo "Installing GitHub CLI..."
+    sudo mkdir -p -m 755 /etc/apt/keyrings
+    install_repository_key https://cli.github.com/packages/githubcli-archive-keyring.gpg /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    apt_get update
+    apt_get install -y --no-install-recommends gh
+  fi
 fi
 
 if [[ "$INSTALL_CLAUDE" == "1" ]]; then
