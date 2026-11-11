@@ -1,58 +1,71 @@
-name: Three-platform checks and test packages
+name: Assemble and verify v0.1.7 release assets
 on:
-  push:
-    branches: ['**', '!codex/release/**']
-  pull_request:
   workflow_dispatch:
+    inputs:
+      operation:
+        required: true
+        type: choice
+        options: [stage, public-check]
+      source:
+        required: true
+        type: string
+      windows_run:
+        required: true
+        type: string
+      linux_run:
+        required: true
+        type: string
 permissions:
   contents: read
-concurrency:
-  group: cage-ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  actions: read
 jobs:
-  workflow-checks:
+  stage:
+    if: github.repository == 'Lee-xeo/Claude-Cage' && inputs.operation == 'stage' && github.ref == 'refs/heads/codex/release/v017-assembly'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          path: assembly
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source }}
+          persist-credentials: false
+          path: candidate
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-      - name: Version consistency and release safety tests
+      - name: Verify package metadata, hashes and upload the checked draft assets
+        working-directory: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ inputs.source }}
+          WIN_RUN: ${{ inputs.windows_run }}
+          LINUX_RUN: ${{ inputs.linux_run }}
+          HELPER: ${{ github.workspace }}/assembly/release-assembly
+        run: bash "$HELPER/stage.sh"
+  public-check:
+    if: inputs.operation == 'public-check'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Verify each anonymously downloaded file
+        env:
+          SOURCE: ${{ inputs.source }}
+        shell: bash
         run: |
-          node scripts/check-repository-files.mjs
-          node scripts/check-version.mjs
-          node --test scripts/release-version.test.mjs scripts/release-control.test.mjs scripts/prepare-release-assets.test.mjs scripts/esigner.test.mjs
-          pwsh -NoProfile -File scripts/test-windows-signing.ps1
-      - name: Validate workflow syntax
-        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.11 -color
-  macos:
-    needs: workflow-checks
-    uses: ./.github/workflows/macos-build.yml
-    with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-macos-arm64-test
-  windows:
-    needs: workflow-checks
-    uses: ./.github/workflows/windows-build.yml
-    with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-windows-amd64-test
-  linux:
-    needs: workflow-checks
-    uses: ./.github/workflows/linux-build.yml
-    with:
-      ref: ${{ github.sha }}
-      release: false
-      artifact_name: cage-linux-amd64-test
+          set -euo pipefail
+          base=https://github.com/Lee-xeo/Claude-Cage/releases/download/v0.1.7
+          curl -fsSL --retry 3 "$base/SHA256SUMS" -o SHA256SUMS
+          test "$(wc -l < SHA256SUMS)" -eq 10
+          declare -A seen=()
+          while read -r hash name; do
+            [[ "$hash" =~ ^[a-f0-9]{64}$ && "$name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]+$ && -z "${seen[$name]:-}" ]]
+            seen[$name]=1
+            curl -fsSL --retry 3 "$base/$name" -o "$name"
+          done < SHA256SUMS
+          sha256sum --check SHA256SUMS
